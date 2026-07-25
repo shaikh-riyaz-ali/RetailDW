@@ -24,25 +24,4 @@ CREATE TABLE etl.error_log
 );
 GO
 
-=======================================================
 
-INSERT INTO etl.etl_log
-(
-    process_name,
-    table_name,
-    rows_loaded,
-    start_time,
-    end_time,
-    duration_ms,
-    status
-)
-VALUES
-(
-    'Bronze Load',
-    'Customers',
-    @RowsLoaded,
-    @StartTime,
-    @EndTime,
-    DATEDIFF(MILLISECOND,@StartTime,@EndTime),
-    'SUCCESS'
-);
