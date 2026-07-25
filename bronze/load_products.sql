@@ -9,10 +9,11 @@ Description:
 Actions:
     1. Truncates the Bronze table.
     2. Loads the CSV file using BULK INSERT.
-    3. Displays rows loaded and execution time.
+    3. Logs execution details into ETL log.
+    4. Logs errors into Error log.
 
 Usage:
-    EXEC bronze.load_products;
+    EXEC bronze.load_products @BatchId;
 
 ===============================================================================
 */
@@ -26,13 +27,15 @@ CREATE OR ALTER PROCEDURE bronze.load_products
 )
 AS
 BEGIN
+
     SET NOCOUNT ON;
 
     DECLARE
         @StartTime   DATETIME2(7),
         @EndTime     DATETIME2(7),
-        @FilePath    NVARCHAR(500),
+        @DurationMs  INT,
         @RowsLoaded  INT,
+        @FilePath    NVARCHAR(500),
         @SqlCommand  NVARCHAR(MAX);
 
     SET @FilePath = N'D:\data pipeline projrct\retail_dwh_project\bronze\';
@@ -42,40 +45,53 @@ BEGIN
         SET @StartTime = SYSDATETIME();
 
         PRINT '------------------------------------------------------------';
-        PRINT 'Loading bronze.products';
+        PRINT 'Loading Table : bronze.products';
+        PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Start Time    : ' + CONVERT(VARCHAR(23), @StartTime, 121);
         PRINT '------------------------------------------------------------';
 
-        -- Remove existing data
+        -----------------------------------------------------------------------
+        -- Remove Existing Data
+        -----------------------------------------------------------------------
         TRUNCATE TABLE bronze.products;
 
-        -- Build BULK INSERT command
+        -----------------------------------------------------------------------
+        -- Build BULK INSERT Statement
+        -----------------------------------------------------------------------
         SET @SqlCommand = N'
-            BULK INSERT bronze.products
-            FROM ''' + @FilePath + 'products_raw.csv''
-            WITH
-            (
-                FIRSTROW = 2,
-                FIELDTERMINATOR = '','',
-                ROWTERMINATOR = ''0x0A'',
-                TABLOCK
-            );';
+        BULK INSERT bronze.products
+        FROM ''' + @FilePath + 'products_raw.csv''
+        WITH
+        (
+            FIRSTROW = 2,
+            FIELDTERMINATOR = '','',
+            ROWTERMINATOR = ''0x0A'',
+            TABLOCK
+        );';
 
+        -----------------------------------------------------------------------
         -- Execute BULK INSERT
+        -----------------------------------------------------------------------
         EXEC sp_executesql @SqlCommand;
 
-        -- Count rows loaded
+        -----------------------------------------------------------------------
+        -- Row Count
+        -----------------------------------------------------------------------
         SELECT
             @RowsLoaded = COUNT(*)
         FROM bronze.products;
 
+        -----------------------------------------------------------------------
+        -- Execution Time
+        -----------------------------------------------------------------------
         SET @EndTime = SYSDATETIME();
 
-        PRINT 'Rows Loaded : ' + CAST(@RowsLoaded AS NVARCHAR(20));
-        PRINT 'Duration    : '
-            + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(20))
-            + ' ms';
+        SET @DurationMs =
+            DATEDIFF(MILLISECOND, @StartTime, @EndTime);
 
-        -- Log successful execution
+        -----------------------------------------------------------------------
+        -- ETL Log
+        -----------------------------------------------------------------------
         INSERT INTO etl.etl_log
         (
             batch_id,
@@ -89,22 +105,32 @@ BEGIN
         )
         VALUES
         (
+            @BatchId,
             'Bronze Load',
             'Products',
             @RowsLoaded,
             @StartTime,
             @EndTime,
-            DATEDIFF(MILLISECOND, @StartTime, @EndTime),
+            @DurationMs,
             'SUCCESS'
         );
 
-        PRINT 'Products Loaded Successfully';
+        -----------------------------------------------------------------------
+        -- Console Output
+        -----------------------------------------------------------------------
+        PRINT 'Rows Loaded   : ' + CAST(@RowsLoaded AS NVARCHAR(20));
+        PRINT 'End Time      : ' + CONVERT(VARCHAR(23), @EndTime, 121);
+        PRINT 'Duration      : ' + CAST(@DurationMs AS NVARCHAR(20)) + ' ms';
+        PRINT 'Status        : SUCCESS';
         PRINT '------------------------------------------------------------';
 
     END TRY
+
     BEGIN CATCH
 
-        -- Log error details
+        -----------------------------------------------------------------------
+        -- Error Log
+        -----------------------------------------------------------------------
         INSERT INTO etl.error_log
         (
             procedure_name,
@@ -115,15 +141,23 @@ BEGIN
         )
         VALUES
         (
-            OBJECT_NAME(@@PROCID),
+            OBJECT_SCHEMA_NAME(@@PROCID) + '.' + OBJECT_NAME(@@PROCID),
             ERROR_NUMBER(),
             ERROR_MESSAGE(),
             ERROR_LINE(),
             ERROR_STATE()
         );
 
-        PRINT 'Error Loading bronze.products';
-        PRINT ERROR_MESSAGE();
+        -----------------------------------------------------------------------
+        -- Console Output
+        -----------------------------------------------------------------------
+        PRINT '------------------------------------------------------------';
+        PRINT 'Loading Failed';
+        PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Error Number  : ' + CAST(ERROR_NUMBER() AS NVARCHAR(20));
+        PRINT 'Error Line    : ' + CAST(ERROR_LINE() AS NVARCHAR(20));
+        PRINT 'Error Message : ' + ERROR_MESSAGE();
+        PRINT '------------------------------------------------------------';
 
         THROW;
 
