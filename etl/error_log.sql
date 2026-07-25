@@ -1,29 +1,25 @@
 USE DWH;
 GO
 
-IF OBJECT_ID('etl.etl_log','U') IS NOT NULL
-    DROP TABLE etl.etl_log;
+IF OBJECT_ID('etl.error_log','U') IS NOT NULL
+    DROP TABLE etl.error_log;
 GO
 
-CREATE TABLE etl.etl_log
+CREATE TABLE etl.error_log
 (
-    log_id           INT IDENTITY(1,1) PRIMARY KEY,
+    error_id           INT IDENTITY(1,1) PRIMARY KEY,
 
-    process_name     NVARCHAR(100),
+    procedure_name     NVARCHAR(200),
 
-    table_name       NVARCHAR(100),
+    error_number       INT,
 
-    rows_loaded      INT,
+    error_message      NVARCHAR(MAX),
 
-    start_time       DATETIME2,
+    error_line         INT,
 
-    end_time         DATETIME2,
+    error_state        INT,
 
-    duration_ms      INT,
-
-    status           NVARCHAR(20),
-
-    created_date     DATETIME2
+    error_time         DATETIME2
         DEFAULT GETDATE()
 );
 GO
