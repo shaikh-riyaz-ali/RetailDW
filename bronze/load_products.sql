@@ -65,7 +65,7 @@ BEGIN
         PRINT 'Rows Loaded : ' + CAST(@RowsLoaded AS NVARCHAR(20));
 
         PRINT 'Duration    : '
-            + CAST(DATEDIFF(SECOND,@StartTime,@EndTime) AS NVARCHAR(20))
+            + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS NVARCHAR(20))
             + ' Seconds';
 
         PRINT 'Products Loaded Successfully';
