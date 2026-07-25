@@ -30,6 +30,7 @@ BEGIN
         @StartTime DATETIME2(0),
         @EndTime DATETIME2(0),
         @FilePath NVARCHAR(500),
+        @RowsLoaded INT,
         @SqlCommand NVARCHAR(MAX);
 
     SET @FilePath = N'D:\data pipeline projrct\retail_dwh_project\bronze\';
@@ -57,10 +58,13 @@ BEGIN
 
         EXEC sp_executesql @SqlCommand;
 
+        -- Get number of rows loaded
+        SELECT @RowsLoaded = COUNT(*)
+        FROM bronze.customers;
+
         SET @EndTime = SYSDATETIME();
 
-        PRINT 'Rows Loaded : '
-            + CAST(@@ROWCOUNT AS NVARCHAR(20));
+        PRINT 'Rows Loaded : ' + CAST(@RowsLoaded AS NVARCHAR(20));
 
         PRINT 'Duration    : '
             + CAST(DATEDIFF(SECOND,@StartTime,@EndTime) AS NVARCHAR(20))
