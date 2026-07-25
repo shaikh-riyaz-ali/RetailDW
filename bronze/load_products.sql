@@ -21,6 +21,9 @@ USE DWH;
 GO
 
 CREATE OR ALTER PROCEDURE bronze.load_products
+(
+    @BatchId UNIQUEIDENTIFIER
+)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -75,6 +78,7 @@ BEGIN
         -- Log successful execution
         INSERT INTO etl.etl_log
         (
+            batch_id,
             process_name,
             table_name,
             rows_loaded,
