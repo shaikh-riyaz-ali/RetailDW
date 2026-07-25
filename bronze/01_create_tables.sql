@@ -42,8 +42,7 @@ CREATE TABLE bronze.customers
     city                NVARCHAR(200)  NULL,
     state               NVARCHAR(50)   NULL,
     country             NVARCHAR(100)  NULL,
-    customer_segment    NVARCHAR(100)  NULL,
-    dwh_create_date     DATETIME2      DEFAULT GETDATE()
+    customer_segment    NVARCHAR(100)  NULL
 );
 GO
 
@@ -63,8 +62,7 @@ CREATE TABLE bronze.products
     sub_category        NVARCHAR(100)  NULL,
     unit_price          NVARCHAR(50)   NULL,
     supplier            NVARCHAR(200)  NULL,
-    discontinued        NVARCHAR(20)   NULL,
-    dwh_create_date     DATETIME2      DEFAULT GETDATE()
+    discontinued        NVARCHAR(20)   NULL
 );
 GO
 
@@ -85,8 +83,7 @@ CREATE TABLE bronze.stores
     state               NVARCHAR(50)   NULL,
     country             NVARCHAR(100)  NULL,
     store_type          NVARCHAR(50)   NULL,
-    opened_date         NVARCHAR(50)   NULL,
-    dwh_create_date     DATETIME2      DEFAULT GETDATE()
+    opened_date         NVARCHAR(50)   NULL
 );
 GO
 
@@ -110,8 +107,7 @@ CREATE TABLE bronze.sales
     unit_price          NVARCHAR(50)   NULL,
     discount_pct        NVARCHAR(50)   NULL,
     payment_method      NVARCHAR(100)  NULL,
-    order_status        NVARCHAR(50)   NULL,
-    dwh_create_date     DATETIME2      DEFAULT GETDATE()
+    order_status        NVARCHAR(50)   NULL
 );
 GO
 
