@@ -68,7 +68,7 @@ BEGIN
 
         PRINT 'Duration    : '
             + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS NVARCHAR(20))
-            + ' Seconds';
+            + ' ms';
 
         PRINT 'Customers Loaded Successfully';
         PRINT '------------------------------------------------------------';
