@@ -6,13 +6,8 @@ Stored Procedure: Load Bronze Customers
 Description:
     Loads the customers_raw.csv file into bronze.customers.
 
-Actions:
-    1. Truncates the Bronze table.
-    2. Loads the CSV file using BULK INSERT.
-    3. Displays rows loaded and execution time.
-
 Usage:
-    EXEC bronze.load_customers;
+    EXEC bronze.load_customers @BatchId;
 
 ===============================================================================
 */
@@ -21,6 +16,9 @@ USE DWH;
 GO
 
 CREATE OR ALTER PROCEDURE bronze.load_customers
+(
+    @BatchId UNIQUEIDENTIFIER
+)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -28,8 +26,9 @@ BEGIN
     DECLARE
         @StartTime   DATETIME2(7),
         @EndTime     DATETIME2(7),
-        @FilePath    NVARCHAR(500),
+        @DurationMs  INT,
         @RowsLoaded  INT,
+        @FilePath    NVARCHAR(500),
         @SqlCommand  NVARCHAR(MAX);
 
     SET @FilePath = N'D:\data pipeline projrct\retail_dwh_project\bronze\';
@@ -39,7 +38,9 @@ BEGIN
         SET @StartTime = SYSDATETIME();
 
         PRINT '------------------------------------------------------------';
-        PRINT 'Loading bronze.customers';
+        PRINT 'Loading Table : bronze.customers';
+        PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Start Time    : ' + CONVERT(VARCHAR(23), @StartTime, 121);
         PRINT '------------------------------------------------------------';
 
         -- Remove existing data
@@ -47,15 +48,15 @@ BEGIN
 
         -- Build BULK INSERT command
         SET @SqlCommand = N'
-            BULK INSERT bronze.customers
-            FROM ''' + @FilePath + 'customers_raw.csv''
-            WITH
-            (
-                FIRSTROW = 2,
-                FIELDTERMINATOR = '','',
-                ROWTERMINATOR = ''0x0A'',
-                TABLOCK
-            );';
+        BULK INSERT bronze.customers
+        FROM ''' + @FilePath + 'customers_raw.csv''
+        WITH
+        (
+            FIRSTROW = 2,
+            FIELDTERMINATOR = '','',
+            ROWTERMINATOR = ''0x0A'',
+            TABLOCK
+        );';
 
         -- Execute BULK INSERT
         EXEC sp_executesql @SqlCommand;
@@ -67,14 +68,18 @@ BEGIN
 
         SET @EndTime = SYSDATETIME();
 
-        PRINT 'Rows Loaded : ' + CAST(@RowsLoaded AS NVARCHAR(20));
-        PRINT 'Duration    : '
-            + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(20))
-            + ' ms';
+        SET @DurationMs =
+            DATEDIFF(MILLISECOND, @StartTime, @EndTime);
+
+        PRINT 'Rows Loaded   : ' + CAST(@RowsLoaded AS NVARCHAR(20));
+        PRINT 'End Time      : ' + CONVERT(VARCHAR(23), @EndTime, 121);
+        PRINT 'Duration      : ' + CAST(@DurationMs AS NVARCHAR(20)) + ' ms';
+        PRINT 'Status        : SUCCESS';
 
         -- Log successful execution
         INSERT INTO etl.etl_log
         (
+            batch_id,
             process_name,
             table_name,
             rows_loaded,
@@ -85,19 +90,20 @@ BEGIN
         )
         VALUES
         (
+            @BatchId,
             'Bronze Load',
             'Customers',
             @RowsLoaded,
             @StartTime,
             @EndTime,
-            DATEDIFF(MILLISECOND, @StartTime, @EndTime),
+            @DurationMs,
             'SUCCESS'
         );
 
-        PRINT 'Customers Loaded Successfully';
         PRINT '------------------------------------------------------------';
 
     END TRY
+
     BEGIN CATCH
 
         -- Log error details
@@ -111,18 +117,24 @@ BEGIN
         )
         VALUES
         (
-            OBJECT_NAME(@@PROCID),
+            OBJECT_SCHEMA_NAME(@@PROCID) + '.' + OBJECT_NAME(@@PROCID),
             ERROR_NUMBER(),
             ERROR_MESSAGE(),
             ERROR_LINE(),
             ERROR_STATE()
         );
 
-        PRINT 'Error Loading bronze.customers';
-        PRINT ERROR_MESSAGE();
+        PRINT '------------------------------------------------------------';
+        PRINT 'Loading Failed';
+        PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Error Number  : ' + CAST(ERROR_NUMBER() AS NVARCHAR(20));
+        PRINT 'Error Line    : ' + CAST(ERROR_LINE() AS NVARCHAR(20));
+        PRINT 'Error Message : ' + ERROR_MESSAGE();
+        PRINT '------------------------------------------------------------';
 
         THROW;
 
     END CATCH
+
 END;
 GO
