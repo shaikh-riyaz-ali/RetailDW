@@ -26,8 +26,8 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE
-        @StartTime   DATETIME2(0),
-        @EndTime     DATETIME2(0),
+        @StartTime   DATETIME2(7),
+        @EndTime     DATETIME2(7),
         @FilePath    NVARCHAR(500),
         @RowsLoaded  INT,
         @SqlCommand  NVARCHAR(MAX);
