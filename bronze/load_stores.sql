@@ -1,10 +1,10 @@
 /*
 ===============================================================================
-Stored Procedure: Load Bronze stores
+Stored Procedure: Load Bronze Stores
 ===============================================================================
 
 Description:
-    Loads the customers_raw.csv file into bronze.stores.
+    Loads the stores_raw.csv file into bronze.stores.
 
 Actions:
     1. Truncates the Bronze table.
@@ -23,15 +23,14 @@ GO
 CREATE OR ALTER PROCEDURE bronze.load_stores
 AS
 BEGIN
-
     SET NOCOUNT ON;
 
     DECLARE
-        @StartTime DATETIME2(0),
-        @EndTime DATETIME2(0),
-        @FilePath NVARCHAR(500),
-        @RowsLoaded INT,
-        @SqlCommand NVARCHAR(MAX);
+        @StartTime   DATETIME2(0),
+        @EndTime     DATETIME2(0),
+        @FilePath    NVARCHAR(500),
+        @RowsLoaded  INT,
+        @SqlCommand  NVARCHAR(MAX);
 
     SET @FilePath = N'D:\data pipeline projrct\retail_dwh_project\bronze\';
 
@@ -43,37 +42,81 @@ BEGIN
         PRINT 'Loading bronze.stores';
         PRINT '------------------------------------------------------------';
 
+        -- Remove existing data
         TRUNCATE TABLE bronze.stores;
 
+        -- Build BULK INSERT command
         SET @SqlCommand = N'
-        BULK INSERT bronze.stores
-        FROM ''' + @FilePath + 'stores_raw.csv''
-        WITH
-        (
-            FIRSTROW = 2,
-            FIELDTERMINATOR='','',
-            ROWTERMINATOR=''0x0A'',
-            TABLOCK
-        );';
+            BULK INSERT bronze.stores
+            FROM ''' + @FilePath + 'stores_raw.csv''
+            WITH
+            (
+                FIRSTROW = 2,
+                FIELDTERMINATOR = '','',
+                ROWTERMINATOR = ''0x0A'',
+                TABLOCK
+            );';
 
+        -- Execute BULK INSERT
         EXEC sp_executesql @SqlCommand;
 
-        SELECT @RowsLoaded = COUNT(*) FROM bronze.stores;
+        -- Count rows loaded
+        SELECT
+            @RowsLoaded = COUNT(*)
+        FROM bronze.stores;
 
         SET @EndTime = SYSDATETIME();
 
         PRINT 'Rows Loaded : ' + CAST(@RowsLoaded AS NVARCHAR(20));
+        PRINT 'Duration    : '
+            + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(20))
+            + ' ms';
 
-        PRINT 'Duration : '
-        + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(20))
-        + ' ms';
+        -- Log successful execution
+        INSERT INTO etl.etl_log
+        (
+            process_name,
+            table_name,
+            rows_loaded,
+            start_time,
+            end_time,
+            duration_ms,
+            status
+        )
+        VALUES
+        (
+            'Bronze Load',
+            'Stores',
+            @RowsLoaded,
+            @StartTime,
+            @EndTime,
+            DATEDIFF(MILLISECOND, @StartTime, @EndTime),
+            'SUCCESS'
+        );
 
-        PRINT 'stores Loaded Successfully';
+        PRINT 'Stores Loaded Successfully';
         PRINT '------------------------------------------------------------';
 
     END TRY
-
     BEGIN CATCH
+
+        -- Log error details
+        INSERT INTO etl.error_log
+        (
+            procedure_name,
+            error_number,
+            error_message,
+            error_line,
+            error_state
+        )
+        VALUES
+        (
+            OBJECT_NAME(@@PROCID),
+            ERROR_NUMBER(),
+            ERROR_MESSAGE(),
+            ERROR_LINE(),
+            ERROR_STATE()
+        );
 
         PRINT 'Error Loading bronze.stores';
         PRINT ERROR_MESSAGE();
