@@ -7,20 +7,16 @@ GO
 
 CREATE TABLE etl.error_log
 (
-    error_id           INT IDENTITY(1,1) PRIMARY KEY,
-
-    procedure_name     NVARCHAR(200),
-
-    error_number       INT,
-
-    error_message      NVARCHAR(MAX),
-
-    error_line         INT,
-
-    error_state        INT,
-
-    error_time         DATETIME2
-        DEFAULT GETDATE()
+    error_id        INT IDENTITY(1,1) PRIMARY KEY,
+    batch_id        UNIQUEIDENTIFIER NULL,
+    process_name    NVARCHAR(100),
+    procedure_name  NVARCHAR(200),
+    table_name      NVARCHAR(100),
+    error_number    INT,
+    error_message   NVARCHAR(MAX),
+    error_line      INT,
+    error_state     INT,
+    error_time      DATETIME2 DEFAULT SYSDATETIME()
 );
 GO
 
