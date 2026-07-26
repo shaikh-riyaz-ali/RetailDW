@@ -224,7 +224,10 @@ BEGIN
 
         INSERT INTO etl.error_log
         (
+            batch_id,
+            process_name,
             procedure_name,
+            table_name,
             error_number,
             error_message,
             error_line,
@@ -232,7 +235,10 @@ BEGIN
         )
         VALUES
         (
-            OBJECT_SCHEMA_NAME(@@PROCID)+'.'+OBJECT_NAME(@@PROCID),
+            @BatchId,
+            'Silver Load',
+            OBJECT_SCHEMA_NAME(@@PROCID) + '.' + OBJECT_NAME(@@PROCID),
+            'Stores',
             ERROR_NUMBER(),
             ERROR_MESSAGE(),
             ERROR_LINE(),
