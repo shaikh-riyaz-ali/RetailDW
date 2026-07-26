@@ -4,7 +4,7 @@ Stored Procedure: Load Gold Customer Dimension
 ===============================================================================
 
 Description:
-    Loads customer dimension from silver.customers into gold.dim_customers.
+    Loads customer dimension from silver.customers into gold.dim_customer.
 
 Usage:
     EXEC gold.load_dim_customers @BatchId;
@@ -25,8 +25,8 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE
-        @StartTime DATETIME2(7),
-        @EndTime DATETIME2(7),
+        @StartTime  DATETIME2(7),
+        @EndTime    DATETIME2(7),
         @DurationMs INT,
         @RowsLoaded INT;
 
@@ -35,13 +35,21 @@ BEGIN
         SET @StartTime = SYSDATETIME();
 
         PRINT '------------------------------------------------------------';
-        PRINT 'Loading Table : gold.dim_customers';
+        PRINT 'Loading Table : gold.dim_customer';
         PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
         PRINT '------------------------------------------------------------';
 
-        TRUNCATE TABLE gold.dim_customers;
+        -----------------------------------------------------------------------
+        -- Remove Existing Data
+        -----------------------------------------------------------------------
 
-        INSERT INTO gold.dim_customers
+        TRUNCATE TABLE gold.dim_customer;
+
+        -----------------------------------------------------------------------
+        -- Load Customer Dimension
+        -----------------------------------------------------------------------
+
+        INSERT INTO gold.dim_customer
         (
             customer_id,
             first_name,
@@ -59,7 +67,7 @@ BEGIN
             customer_id,
             first_name,
             last_name,
-            CONCAT(first_name,' ',last_name),
+            CONCAT(first_name, ' ', last_name),
             email,
             phone,
             signup_date,
@@ -69,13 +77,22 @@ BEGIN
             customer_segment
         FROM silver.customers;
 
-        SELECT @RowsLoaded = COUNT(*)
-        FROM gold.dim_customers;
+        -----------------------------------------------------------------------
+        -- Statistics
+        -----------------------------------------------------------------------
+
+        SELECT
+            @RowsLoaded = COUNT(*)
+        FROM gold.dim_customer;
 
         SET @EndTime = SYSDATETIME();
 
         SET @DurationMs =
-            DATEDIFF(MILLISECOND,@StartTime,@EndTime);
+            DATEDIFF(MILLISECOND, @StartTime, @EndTime);
+
+        -----------------------------------------------------------------------
+        -- ETL Log
+        -----------------------------------------------------------------------
 
         INSERT INTO etl.etl_log
         (
@@ -92,7 +109,7 @@ BEGIN
         (
             @BatchId,
             'Gold Load',
-            'Dim Customers',
+            'Dim Customer',
             @RowsLoaded,
             @StartTime,
             @EndTime,
@@ -101,7 +118,9 @@ BEGIN
         );
 
         PRINT 'Rows Loaded : ' + CAST(@RowsLoaded AS NVARCHAR(20));
+        PRINT 'Duration    : ' + CAST(@DurationMs AS NVARCHAR(20)) + ' ms';
         PRINT 'Status      : SUCCESS';
+        PRINT '------------------------------------------------------------';
 
     END TRY
 
@@ -122,13 +141,21 @@ BEGIN
         (
             @BatchId,
             'Gold Load',
-            OBJECT_SCHEMA_NAME(@@PROCID)+'.'+OBJECT_NAME(@@PROCID),
-            'Dim Customers',
+            OBJECT_SCHEMA_NAME(@@PROCID) + '.' + OBJECT_NAME(@@PROCID),
+            'Dim Customer',
             ERROR_NUMBER(),
             ERROR_MESSAGE(),
             ERROR_LINE(),
             ERROR_STATE()
         );
+
+        PRINT '------------------------------------------------------------';
+        PRINT 'Loading Failed';
+        PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Error Number  : ' + CAST(ERROR_NUMBER() AS NVARCHAR(20));
+        PRINT 'Error Line    : ' + CAST(ERROR_LINE() AS NVARCHAR(20));
+        PRINT 'Error Message : ' + ERROR_MESSAGE();
+        PRINT '------------------------------------------------------------';
 
         THROW;
 
