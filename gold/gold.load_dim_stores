@@ -1,0 +1,118 @@
+/*
+===============================================================================
+Stored Procedure: Load Gold Store Dimension
+===============================================================================
+*/
+
+USE DWH;
+GO
+
+CREATE OR ALTER PROCEDURE gold.load_dim_stores
+(
+    @BatchId UNIQUEIDENTIFIER
+)
+AS
+BEGIN
+
+    SET NOCOUNT ON;
+
+    DECLARE
+        @StartTime DATETIME2(7),
+        @EndTime DATETIME2(7),
+        @DurationMs INT,
+        @RowsLoaded INT;
+
+    BEGIN TRY
+
+        SET @StartTime = SYSDATETIME();
+
+        PRINT 'Loading gold.dim_stores';
+
+        TRUNCATE TABLE gold.dim_stores;
+
+        INSERT INTO gold.dim_stores
+        (
+            store_id,
+            store_name,
+            region,
+            city,
+            state,
+            country,
+            store_type,
+            opened_date
+        )
+        SELECT
+            store_id,
+            store_name,
+            region,
+            city,
+            state,
+            country,
+            store_type,
+            opened_date
+        FROM silver.stores;
+
+        SELECT @RowsLoaded = COUNT(*)
+        FROM gold.dim_stores;
+
+        SET @EndTime = SYSDATETIME();
+
+        SET @DurationMs =
+            DATEDIFF(MILLISECOND,@StartTime,@EndTime);
+
+        INSERT INTO etl.etl_log
+        (
+            batch_id,
+            process_name,
+            table_name,
+            rows_loaded,
+            start_time,
+            end_time,
+            duration_ms,
+            status
+        )
+        VALUES
+        (
+            @BatchId,
+            'Gold Load',
+            'Dim Stores',
+            @RowsLoaded,
+            @StartTime,
+            @EndTime,
+            @DurationMs,
+            'SUCCESS'
+        );
+
+    END TRY
+
+    BEGIN CATCH
+
+        INSERT INTO etl.error_log
+        (
+            batch_id,
+            process_name,
+            procedure_name,
+            table_name,
+            error_number,
+            error_message,
+            error_line,
+            error_state
+        )
+        VALUES
+        (
+            @BatchId,
+            'Gold Load',
+            OBJECT_SCHEMA_NAME(@@PROCID)+'.'+OBJECT_NAME(@@PROCID),
+            'Dim Stores',
+            ERROR_NUMBER(),
+            ERROR_MESSAGE(),
+            ERROR_LINE(),
+            ERROR_STATE()
+        );
+
+        THROW;
+
+    END CATCH
+
+END;
+GO
