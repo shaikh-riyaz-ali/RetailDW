@@ -53,30 +53,34 @@ BEGIN
         -----------------------------------------------------------------------
         -- Remove Existing Data
         -----------------------------------------------------------------------
+
         TRUNCATE TABLE bronze.stores;
 
         -----------------------------------------------------------------------
         -- Build BULK INSERT Statement
         -----------------------------------------------------------------------
+
         SET @SqlCommand = N'
-        BULK INSERT bronze.stores
-        FROM ''' + @FilePath + 'stores_raw.csv''
-        WITH
-        (
-            FIRSTROW = 2,
-            FIELDTERMINATOR = '','',
-            ROWTERMINATOR = ''0x0A'',
-            TABLOCK
-        );';
+            BULK INSERT bronze.stores
+            FROM ''' + @FilePath + 'stores_raw.csv''
+            WITH
+            (
+                FIRSTROW = 2,
+                FIELDTERMINATOR = '','',
+                ROWTERMINATOR = ''0x0A'',
+                TABLOCK
+            );';
 
         -----------------------------------------------------------------------
         -- Execute BULK INSERT
         -----------------------------------------------------------------------
+
         EXEC sp_executesql @SqlCommand;
 
         -----------------------------------------------------------------------
         -- Count Rows Loaded
         -----------------------------------------------------------------------
+
         SELECT
             @RowsLoaded = COUNT(*)
         FROM bronze.stores;
@@ -84,6 +88,7 @@ BEGIN
         -----------------------------------------------------------------------
         -- Calculate Duration
         -----------------------------------------------------------------------
+
         SET @EndTime = SYSDATETIME();
 
         SET @DurationMs =
@@ -92,6 +97,7 @@ BEGIN
         -----------------------------------------------------------------------
         -- ETL Log
         -----------------------------------------------------------------------
+
         INSERT INTO etl.etl_log
         (
             batch_id,
@@ -118,6 +124,7 @@ BEGIN
         -----------------------------------------------------------------------
         -- Console Output
         -----------------------------------------------------------------------
+
         PRINT 'Rows Loaded   : ' + CAST(@RowsLoaded AS NVARCHAR(20));
         PRINT 'End Time      : ' + CONVERT(VARCHAR(23), @EndTime, 121);
         PRINT 'Duration      : ' + CAST(@DurationMs AS NVARCHAR(20)) + ' ms';
@@ -131,9 +138,13 @@ BEGIN
         -----------------------------------------------------------------------
         -- Error Log
         -----------------------------------------------------------------------
+
         INSERT INTO etl.error_log
         (
+            batch_id,
+            process_name,
             procedure_name,
+            table_name,
             error_number,
             error_message,
             error_line,
@@ -141,7 +152,10 @@ BEGIN
         )
         VALUES
         (
+            @BatchId,
+            'Bronze Load',
             OBJECT_SCHEMA_NAME(@@PROCID) + '.' + OBJECT_NAME(@@PROCID),
+            'Stores',
             ERROR_NUMBER(),
             ERROR_MESSAGE(),
             ERROR_LINE(),
@@ -151,6 +165,7 @@ BEGIN
         -----------------------------------------------------------------------
         -- Console Output
         -----------------------------------------------------------------------
+
         PRINT '------------------------------------------------------------';
         PRINT 'Loading Failed';
         PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
