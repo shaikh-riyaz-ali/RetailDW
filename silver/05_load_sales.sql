@@ -1,21 +1,20 @@
 /*
 ===============================================================================
-Stored Procedure: Load Silver Sales
+Stored Procedure : Load Silver Sales
 ===============================================================================
 
 Description:
-    Cleans and transforms sales data from bronze.sales into
-    silver.sales.
+    Cleans and transforms sales data from bronze.sales into silver.sales.
 
-Actions:
-    1. Removes duplicate transactions.
-    2. Converts dates.
-    3. Converts numeric columns.
-    4. Standardizes payment methods.
-    5. Standardizes order status.
-    6. Replaces NULL/blank values.
-    7. Loads clean data into silver.sales.
-    8. Writes ETL log.
+Business Rules:
+    • Remove duplicate transactions.
+    • Trim whitespace.
+    • Convert dates to DATE datatype.
+    • Standardize payment methods.
+    • Standardize order status.
+    • Replace invalid numeric values.
+    • Log ETL execution.
+    • Log errors.
 
 Usage:
     EXEC silver.load_sales @BatchId;
@@ -36,8 +35,8 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE
-        @StartTime DATETIME2(7),
-        @EndTime DATETIME2(7),
+        @StartTime  DATETIME2(7),
+        @EndTime    DATETIME2(7),
         @DurationMs INT,
         @RowsLoaded INT;
 
@@ -51,13 +50,13 @@ BEGIN
         PRINT '------------------------------------------------------------';
 
         -----------------------------------------------------------------------
-        -- Remove Previous Load
+        -- Remove Previous Data
         -----------------------------------------------------------------------
 
         TRUNCATE TABLE silver.sales;
 
         -----------------------------------------------------------------------
-        -- Clean Sales
+        -- Clean Bronze Sales
         -----------------------------------------------------------------------
 
         ;WITH CleanSales AS
@@ -65,16 +64,16 @@ BEGIN
             SELECT
 
                 transaction_id,
-                TRIM(order_date) AS order_date,
-                TRIM(ship_date) AS ship_date,
-                TRIM(customer_id) AS customer_id,
-                TRIM(product_id) AS product_id,
-                TRIM(store_id) AS store_id,
-                TRIM(quantity) AS quantity,
-                TRIM(unit_price) AS unit_price,
-                TRIM(discount_pct) AS discount_pct,
-                TRIM(payment_method) AS payment_method,
-                TRIM(order_status) AS order_status,
+                TRIM(order_date)      AS order_date,
+                TRIM(ship_date)       AS ship_date,
+                TRIM(customer_id)     AS customer_id,
+                TRIM(product_id)      AS product_id,
+                TRIM(store_id)        AS store_id,
+                TRIM(quantity)        AS quantity,
+                TRIM(unit_price)      AS unit_price,
+                TRIM(discount_pct)    AS discount_pct,
+                TRIM(payment_method)  AS payment_method,
+                TRIM(order_status)    AS order_status,
 
                 ROW_NUMBER() OVER
                 (
@@ -102,6 +101,10 @@ BEGIN
 
         SELECT
 
+            -------------------------------------------------------------------
+            -- Transaction
+            -------------------------------------------------------------------
+
             transaction_id,
 
             -------------------------------------------------------------------
@@ -110,90 +113,126 @@ BEGIN
 
             COALESCE
             (
-                TRY_CONVERT(DATE,order_date,101),
-                TRY_CONVERT(DATE,order_date,23)
-            ),
+                TRY_CONVERT(DATE, order_date, 101),   -- MM/DD/YYYY
+                TRY_CONVERT(DATE, order_date, 23),    -- YYYY-MM-DD
+                TRY_CONVERT(DATE, order_date, 106)    -- DD-MMM-YYYY
+            ) AS order_date,
 
             -------------------------------------------------------------------
             -- Ship Date
             -------------------------------------------------------------------
 
-            COALESCE
-            (
-                TRY_CONVERT(DATE,ship_date,101),
-                TRY_CONVERT(DATE,ship_date,23)
-            ),
+            CASE
+
+                WHEN
+                    COALESCE
+                    (
+                        TRY_CONVERT(DATE, ship_date,101),
+                        TRY_CONVERT(DATE, ship_date,23),
+                        TRY_CONVERT(DATE, ship_date,106)
+                    )
+                    <
+                    COALESCE
+                    (
+                        TRY_CONVERT(DATE, order_date,101),
+                        TRY_CONVERT(DATE, order_date,23),
+                        TRY_CONVERT(DATE, order_date,106)
+                    )
+
+                THEN NULL
+
+                ELSE
+                    COALESCE
+                    (
+                        TRY_CONVERT(DATE, ship_date,101),
+                        TRY_CONVERT(DATE, ship_date,23),
+                        TRY_CONVERT(DATE, ship_date,106)
+                    )
+
+            END,
 
             -------------------------------------------------------------------
             -- Customer
             -------------------------------------------------------------------
 
-            CASE
-                WHEN customer_id IS NULL OR customer_id=''
-                THEN 'Unknown'
-                ELSE customer_id
-            END,
+            ISNULL(NULLIF(customer_id,''),'Unknown'),
 
             -------------------------------------------------------------------
             -- Product
             -------------------------------------------------------------------
 
-            CASE
-                WHEN product_id IS NULL OR product_id=''
-                THEN 'Unknown'
-                ELSE product_id
-            END,
+            ISNULL(NULLIF(product_id,''),'Unknown'),
 
             -------------------------------------------------------------------
             -- Store
             -------------------------------------------------------------------
 
-            CASE
-                WHEN store_id IS NULL OR store_id=''
-                THEN 'Unknown'
-                ELSE store_id
-            END,
+            ISNULL(NULLIF(store_id,''),'Unknown'),
 
             -------------------------------------------------------------------
             -- Quantity
             -------------------------------------------------------------------
 
-            ISNULL
-            (
-                TRY_CONVERT(INT,quantity),
-                0
-            ),
+            CASE
+
+                WHEN TRY_CONVERT(INT,quantity) IS NULL THEN 0
+                WHEN TRY_CONVERT(INT,quantity) < 0 THEN 0
+                ELSE TRY_CONVERT(INT,quantity)
+
+            END,
 
             -------------------------------------------------------------------
             -- Unit Price
             -------------------------------------------------------------------
 
-            ISNULL
-            (
-                TRY_CONVERT(DECIMAL(10,2),unit_price),
-                0.00
-            ),
+            CASE
+
+                WHEN TRY_CONVERT(DECIMAL(10,2),unit_price) IS NULL THEN 0.00
+                WHEN TRY_CONVERT(DECIMAL(10,2),unit_price) < 0 THEN 0.00
+                ELSE TRY_CONVERT(DECIMAL(10,2),unit_price)
+
+            END,
 
             -------------------------------------------------------------------
             -- Discount
             -------------------------------------------------------------------
 
-            ISNULL
-            (
-                TRY_CONVERT(DECIMAL(5,2),discount_pct),
-                0.00
-            ),
+            CASE
+
+                WHEN TRY_CONVERT(DECIMAL(5,2),discount_pct) IS NULL THEN 0
+                WHEN TRY_CONVERT(DECIMAL(5,2),discount_pct) < 0 THEN 0
+                WHEN TRY_CONVERT(DECIMAL(5,2),discount_pct) > 1 THEN 1
+                ELSE TRY_CONVERT(DECIMAL(5,2),discount_pct)
+
+            END,
 
             -------------------------------------------------------------------
             -- Payment Method
             -------------------------------------------------------------------
 
             CASE
-                WHEN payment_method IS NULL
-                     OR payment_method=''
-                THEN 'Unknown'
 
-                ELSE payment_method
+                WHEN payment_method IS NULL
+                     OR payment_method = ''
+                    THEN 'Unknown'
+
+                WHEN UPPER(payment_method)='CREDIT CARD'
+                    THEN 'Credit Card'
+
+                WHEN UPPER(payment_method)='DEBIT CARD'
+                    THEN 'Debit Card'
+
+                WHEN UPPER(payment_method)='CASH'
+                    THEN 'Cash'
+
+                WHEN UPPER(payment_method)='COD'
+                    THEN 'COD'
+
+                WHEN UPPER(payment_method)='GIFT CARD'
+                    THEN 'Gift Card'
+
+                ELSE 'Other'
+
             END,
 
             -------------------------------------------------------------------
@@ -202,20 +241,29 @@ BEGIN
 
             CASE
 
-                WHEN UPPER(order_status)='DELIVERED'
-                THEN 'Delivered'
-
-                WHEN UPPER(order_status)='SHIPPED'
-                THEN 'Shipped'
-
-                WHEN UPPER(order_status)='PROCESSING'
-                THEN 'Processing'
-
-                WHEN UPPER(order_status)='CANCELLED'
-                THEN 'Cancelled'
+                WHEN UPPER(order_status)='COMPLETED'
+                    THEN 'Completed'
 
                 WHEN UPPER(order_status)='RETURNED'
-                THEN 'Returned'
+                    THEN 'Returned'
+
+                WHEN UPPER(order_status)='REFUNDED'
+                    THEN 'Refunded'
+
+                WHEN UPPER(order_status)='PENDING'
+                    THEN 'Pending'
+
+                WHEN UPPER(order_status)='CANCELLED'
+                    THEN 'Cancelled'
+
+                WHEN UPPER(order_status)='PROCESSING'
+                    THEN 'Processing'
+
+                WHEN UPPER(order_status)='SHIPPED'
+                    THEN 'Shipped'
+
+                WHEN UPPER(order_status)='DELIVERED'
+                    THEN 'Delivered'
 
                 ELSE 'Unknown'
 
@@ -226,7 +274,7 @@ BEGIN
         WHERE rn = 1;
 
         -----------------------------------------------------------------------
-        -- Row Count
+        -- ETL Statistics
         -----------------------------------------------------------------------
 
         SELECT
@@ -253,7 +301,6 @@ BEGIN
             duration_ms,
             status
         )
-
         VALUES
         (
             @BatchId,
@@ -269,6 +316,7 @@ BEGIN
         PRINT 'Rows Loaded : ' + CAST(@RowsLoaded AS NVARCHAR(20));
         PRINT 'Duration    : ' + CAST(@DurationMs AS NVARCHAR(20)) + ' ms';
         PRINT 'Status      : SUCCESS';
+        PRINT '------------------------------------------------------------';
 
     END TRY
 
@@ -296,6 +344,13 @@ BEGIN
             ERROR_LINE(),
             ERROR_STATE()
         );
+
+        PRINT '------------------------------------------------------------';
+        PRINT 'Loading Failed';
+        PRINT 'Table      : Sales';
+        PRINT 'Batch ID   : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Error      : ' + ERROR_MESSAGE();
+        PRINT '------------------------------------------------------------';
 
         THROW;
 
