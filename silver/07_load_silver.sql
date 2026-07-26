@@ -11,7 +11,8 @@ Actions:
     2. Executes all Silver load procedures.
     3. Executes Silver validation.
     4. Measures total execution time.
-    5. Displays execution summary.
+    5. Logs any batch-level errors.
+    6. Displays execution summary.
 
 Usage:
     EXEC silver.load_silver;
@@ -29,9 +30,14 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE
-        @BatchId UNIQUEIDENTIFIER,
-        @BatchStart DATETIME2(7),
-        @BatchEnd DATETIME2(7);
+        @BatchId       UNIQUEIDENTIFIER,
+        @BatchStart    DATETIME2(7),
+        @BatchEnd      DATETIME2(7),
+        @DurationMs    INT;
+
+    --------------------------------------------------------------------------
+    -- Generate Batch ID
+    --------------------------------------------------------------------------
 
     SET @BatchId = NEWID();
 
@@ -45,43 +51,53 @@ BEGIN
         PRINT 'Start Time : ' + CONVERT(VARCHAR(23), @BatchStart, 121);
         PRINT '============================================================';
 
-        -----------------------------------------------------------------------
-        -- Load Silver Tables
-        -----------------------------------------------------------------------
+        ----------------------------------------------------------------------
+        -- Load Customers
+        ----------------------------------------------------------------------
 
         EXEC silver.load_customers @BatchId;
 
+        ----------------------------------------------------------------------
+        -- Load Products
+        ----------------------------------------------------------------------
+
         EXEC silver.load_products @BatchId;
+
+        ----------------------------------------------------------------------
+        -- Load Stores
+        ----------------------------------------------------------------------
 
         EXEC silver.load_stores @BatchId;
 
+        ----------------------------------------------------------------------
+        -- Load Sales
+        ----------------------------------------------------------------------
+
         EXEC silver.load_sales @BatchId;
 
-        -----------------------------------------------------------------------
+        ----------------------------------------------------------------------
         -- Validate Silver Layer
-        -----------------------------------------------------------------------
+        ----------------------------------------------------------------------
 
-        PRINT '';
-        PRINT 'Running Silver Validation...';
+        EXEC silver.validate_silver @BatchId;
 
-        :r .\06_validate_silver.sql
-        -- If your SQL tool does not support :r,
-        -- simply execute 06_validate_silver.sql
-        -- after running this procedure.
-
-        -----------------------------------------------------------------------
+        ----------------------------------------------------------------------
         -- Batch Summary
-        -----------------------------------------------------------------------
+        ----------------------------------------------------------------------
 
         SET @BatchEnd = SYSDATETIME();
 
+        SET @DurationMs =
+            DATEDIFF(MILLISECOND, @BatchStart, @BatchEnd);
+
+        PRINT '';
         PRINT '============================================================';
-        PRINT 'SILVER LAYER COMPLETED';
+        PRINT 'SILVER LAYER COMPLETED SUCCESSFULLY';
+        PRINT '============================================================';
         PRINT 'Batch ID       : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Start Time     : ' + CONVERT(VARCHAR(23), @BatchStart, 121);
         PRINT 'End Time       : ' + CONVERT(VARCHAR(23), @BatchEnd, 121);
-        PRINT 'Total Duration : '
-            + CAST(DATEDIFF(MILLISECOND,@BatchStart,@BatchEnd) AS NVARCHAR(20))
-            + ' ms';
+        PRINT 'Duration       : ' + CAST(@DurationMs AS NVARCHAR(20)) + ' ms';
         PRINT 'Status         : SUCCESS';
         PRINT '============================================================';
 
@@ -90,6 +106,13 @@ BEGIN
     BEGIN CATCH
 
         SET @BatchEnd = SYSDATETIME();
+
+        SET @DurationMs =
+            DATEDIFF(MILLISECOND, @BatchStart, @BatchEnd);
+
+        ----------------------------------------------------------------------
+        -- Log Batch Error
+        ----------------------------------------------------------------------
 
         INSERT INTO etl.error_log
         (
@@ -114,10 +137,22 @@ BEGIN
             ERROR_STATE()
         );
 
+        ----------------------------------------------------------------------
+        -- Print Error
+        ----------------------------------------------------------------------
+
+        PRINT '';
         PRINT '============================================================';
         PRINT 'SILVER LAYER FAILED';
-        PRINT 'Batch ID   : ' + CAST(@BatchId AS NVARCHAR(36));
-        PRINT 'Error      : ' + ERROR_MESSAGE();
+        PRINT '============================================================';
+        PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Start Time    : ' + CONVERT(VARCHAR(23), @BatchStart, 121);
+        PRINT 'End Time      : ' + CONVERT(VARCHAR(23), @BatchEnd, 121);
+        PRINT 'Duration      : ' + CAST(@DurationMs AS NVARCHAR(20)) + ' ms';
+        PRINT 'Error Number  : ' + CAST(ERROR_NUMBER() AS NVARCHAR(20));
+        PRINT 'Error Line    : ' + CAST(ERROR_LINE() AS NVARCHAR(20));
+        PRINT 'Error Message : ' + ERROR_MESSAGE();
+        PRINT 'Status        : FAILED';
         PRINT '============================================================';
 
         THROW;
