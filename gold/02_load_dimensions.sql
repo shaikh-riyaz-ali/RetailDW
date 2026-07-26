@@ -1,15 +1,16 @@
 /*
 ===============================================================================
-Stored Procedure: Load Gold Dimensions
+Stored Procedure : Load Gold Dimensions
 ===============================================================================
 
 Description:
-    Loads all Gold Dimension tables from the Silver layer.
+    Master procedure responsible for loading all Gold dimension tables.
 
-Dimensions:
-    • dim_customers
-    • dim_products
-    • dim_stores
+Actions:
+    1. Receives Batch ID from gold.load_gold.
+    2. Executes all dimension load procedures.
+    3. Measures execution time.
+    4. Logs any errors.
 
 Usage:
     EXEC gold.load_dimensions @BatchId;
@@ -31,8 +32,7 @@ BEGIN
 
     DECLARE
         @StartTime DATETIME2(7),
-        @EndTime DATETIME2(7),
-        @DurationMs INT;
+        @EndTime   DATETIME2(7);
 
     BEGIN TRY
 
@@ -40,151 +40,43 @@ BEGIN
 
         PRINT '============================================================';
         PRINT 'LOADING GOLD DIMENSIONS';
-        PRINT 'Batch ID : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Batch ID   : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Start Time : ' + CONVERT(VARCHAR(23), @StartTime, 121);
         PRINT '============================================================';
 
         -----------------------------------------------------------------------
-        -- Customer Dimension
+        -- Load Customer Dimension
         -----------------------------------------------------------------------
 
-        PRINT '';
-        PRINT 'Loading gold.dim_customers...';
-
-        TRUNCATE TABLE gold.dim_customers;
-
-        INSERT INTO gold.dim_customers
-        (
-            customer_id,
-            first_name,
-            last_name,
-            email,
-            phone,
-            signup_date,
-            city,
-            state,
-            country,
-            customer_segment
-        )
-
-        SELECT
-            customer_id,
-            first_name,
-            last_name,
-            email,
-            phone,
-            signup_date,
-            city,
-            state,
-            country,
-            customer_segment
-        FROM silver.customers;
-
-        PRINT 'Customers Loaded : ' + CAST(@@ROWCOUNT AS NVARCHAR(20));
+        EXEC gold.load_dim_customers @BatchId;
 
         -----------------------------------------------------------------------
-        -- Product Dimension
+        -- Load Product Dimension
         -----------------------------------------------------------------------
 
-        PRINT '';
-        PRINT 'Loading gold.dim_products...';
-
-        TRUNCATE TABLE gold.dim_products;
-
-        INSERT INTO gold.dim_products
-        (
-            product_id,
-            product_name,
-            category,
-            sub_category,
-            unit_price,
-            supplier,
-            discontinued
-        )
-
-        SELECT
-            product_id,
-            product_name,
-            category,
-            sub_category,
-            unit_price,
-            supplier,
-            discontinued
-        FROM silver.products;
-
-        PRINT 'Products Loaded : ' + CAST(@@ROWCOUNT AS NVARCHAR(20));
+        EXEC gold.load_dim_products @BatchId;
 
         -----------------------------------------------------------------------
-        -- Store Dimension
+        -- Load Store Dimension
         -----------------------------------------------------------------------
 
-        PRINT '';
-        PRINT 'Loading gold.dim_stores...';
-
-        TRUNCATE TABLE gold.dim_stores;
-
-        INSERT INTO gold.dim_stores
-        (
-            store_id,
-            store_name,
-            region,
-            city,
-            state,
-            country,
-            store_type,
-            opened_date
-        )
-
-        SELECT
-            store_id,
-            store_name,
-            region,
-            city,
-            state,
-            country,
-            store_type,
-            opened_date
-        FROM silver.stores;
-
-        PRINT 'Stores Loaded : ' + CAST(@@ROWCOUNT AS NVARCHAR(20));
+        EXEC gold.load_dim_stores @BatchId;
 
         -----------------------------------------------------------------------
-        -- ETL Log
+        -- Summary
         -----------------------------------------------------------------------
 
         SET @EndTime = SYSDATETIME();
 
-        SET @DurationMs =
-            DATEDIFF(MILLISECOND,@StartTime,@EndTime);
-
-        INSERT INTO etl.etl_log
-        (
-            batch_id,
-            process_name,
-            table_name,
-            rows_loaded,
-            start_time,
-            end_time,
-            duration_ms,
-            status
-        )
-        VALUES
-        (
-            @BatchId,
-            'Gold Load',
-            'Dimensions',
-            (
-                (SELECT COUNT(*) FROM gold.dim_customers)
-              + (SELECT COUNT(*) FROM gold.dim_products)
-              + (SELECT COUNT(*) FROM gold.dim_stores)
-            ),
-            @StartTime,
-            @EndTime,
-            @DurationMs,
-            'SUCCESS'
-        );
-
-        PRINT '';
-        PRINT 'Gold Dimensions Loaded Successfully';
+        PRINT '============================================================';
+        PRINT 'GOLD DIMENSIONS COMPLETED';
+        PRINT 'Batch ID       : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'End Time       : ' + CONVERT(VARCHAR(23), @EndTime, 121);
+        PRINT 'Total Duration : '
+              + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS NVARCHAR(20))
+              + ' ms';
+        PRINT 'Status         : SUCCESS';
+        PRINT '============================================================';
 
     END TRY
 
@@ -205,13 +97,20 @@ BEGIN
         (
             @BatchId,
             'Gold Load',
-            OBJECT_SCHEMA_NAME(@@PROCID)+'.'+OBJECT_NAME(@@PROCID),
+            OBJECT_SCHEMA_NAME(@@PROCID) + '.' + OBJECT_NAME(@@PROCID),
             'Dimensions',
             ERROR_NUMBER(),
             ERROR_MESSAGE(),
             ERROR_LINE(),
             ERROR_STATE()
         );
+
+        PRINT '============================================================';
+        PRINT 'GOLD DIMENSION LOAD FAILED';
+        PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Error Number  : ' + CAST(ERROR_NUMBER() AS NVARCHAR(20));
+        PRINT 'Error Message : ' + ERROR_MESSAGE();
+        PRINT '============================================================';
 
         THROW;
 
