@@ -100,20 +100,18 @@ GO
 
 CREATE TABLE silver.sales
 (
-    transaction_id     NVARCHAR(50)    NOT NULL,
-    order_date         DATE            NULL,
-    ship_date          DATE            NULL,
-    customer_id        NVARCHAR(50)    NOT NULL,
-    product_id         NVARCHAR(50)    NOT NULL,
-    store_id           NVARCHAR(50)    NOT NULL,
-    quantity           INT             NOT NULL,
-    unit_price         DECIMAL(10,2)   NOT NULL,
-    discount_pct       DECIMAL(5,2)    NOT NULL,
-    payment_method     NVARCHAR(50)    NOT NULL,
-    order_status       NVARCHAR(50)    NOT NULL,
-
-    dwh_create_date    DATETIME2(7) NOT NULL
-        DEFAULT SYSDATETIME()
+    transaction_id   NVARCHAR(50),
+    order_date       DATE,
+    ship_date        DATE,
+    customer_id      NVARCHAR(50),
+    product_id       NVARCHAR(50),
+    store_id         NVARCHAR(50),
+    quantity         INT,
+    unit_price       DECIMAL(10,2),
+    discount_pct     DECIMAL(5,2),
+    payment_method   NVARCHAR(50),
+    order_status     NVARCHAR(50),
+    dwh_create_date  DATETIME2(7) DEFAULT SYSDATETIME()
 );
 GO
 
