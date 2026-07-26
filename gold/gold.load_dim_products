@@ -2,6 +2,14 @@
 ===============================================================================
 Stored Procedure: Load Gold Product Dimension
 ===============================================================================
+
+Description:
+    Loads product dimension from silver.products into gold.dim_product.
+
+Usage:
+    EXEC gold.load_dim_products @BatchId;
+
+===============================================================================
 */
 
 USE DWH;
@@ -17,8 +25,8 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE
-        @StartTime DATETIME2(7),
-        @EndTime DATETIME2(7),
+        @StartTime  DATETIME2(7),
+        @EndTime    DATETIME2(7),
         @DurationMs INT,
         @RowsLoaded INT;
 
@@ -26,11 +34,22 @@ BEGIN
 
         SET @StartTime = SYSDATETIME();
 
-        PRINT 'Loading gold.dim_products';
+        PRINT '------------------------------------------------------------';
+        PRINT 'Loading Table : gold.dim_product';
+        PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT '------------------------------------------------------------';
 
-        TRUNCATE TABLE gold.dim_products;
+        -----------------------------------------------------------------------
+        -- Remove Existing Data
+        -----------------------------------------------------------------------
 
-        INSERT INTO gold.dim_products
+        TRUNCATE TABLE gold.dim_product;
+
+        -----------------------------------------------------------------------
+        -- Load Product Dimension
+        -----------------------------------------------------------------------
+
+        INSERT INTO gold.dim_product
         (
             product_id,
             product_name,
@@ -50,13 +69,22 @@ BEGIN
             discontinued
         FROM silver.products;
 
-        SELECT @RowsLoaded = COUNT(*)
-        FROM gold.dim_products;
+        -----------------------------------------------------------------------
+        -- Statistics
+        -----------------------------------------------------------------------
+
+        SELECT
+            @RowsLoaded = COUNT(*)
+        FROM gold.dim_product;
 
         SET @EndTime = SYSDATETIME();
 
         SET @DurationMs =
-            DATEDIFF(MILLISECOND,@StartTime,@EndTime);
+            DATEDIFF(MILLISECOND, @StartTime, @EndTime);
+
+        -----------------------------------------------------------------------
+        -- ETL Log
+        -----------------------------------------------------------------------
 
         INSERT INTO etl.etl_log
         (
@@ -73,13 +101,18 @@ BEGIN
         (
             @BatchId,
             'Gold Load',
-            'Dim Products',
+            'Dim Product',
             @RowsLoaded,
             @StartTime,
             @EndTime,
             @DurationMs,
             'SUCCESS'
         );
+
+        PRINT 'Rows Loaded : ' + CAST(@RowsLoaded AS NVARCHAR(20));
+        PRINT 'Duration    : ' + CAST(@DurationMs AS NVARCHAR(20)) + ' ms';
+        PRINT 'Status      : SUCCESS';
+        PRINT '------------------------------------------------------------';
 
     END TRY
 
@@ -100,13 +133,21 @@ BEGIN
         (
             @BatchId,
             'Gold Load',
-            OBJECT_SCHEMA_NAME(@@PROCID)+'.'+OBJECT_NAME(@@PROCID),
-            'Dim Products',
+            OBJECT_SCHEMA_NAME(@@PROCID) + '.' + OBJECT_NAME(@@PROCID),
+            'Dim Product',
             ERROR_NUMBER(),
             ERROR_MESSAGE(),
             ERROR_LINE(),
             ERROR_STATE()
         );
+
+        PRINT '------------------------------------------------------------';
+        PRINT 'Loading Failed';
+        PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'Error Number  : ' + CAST(ERROR_NUMBER() AS NVARCHAR(20));
+        PRINT 'Error Line    : ' + CAST(ERROR_LINE() AS NVARCHAR(20));
+        PRINT 'Error Message : ' + ERROR_MESSAGE();
+        PRINT '------------------------------------------------------------';
 
         THROW;
 
