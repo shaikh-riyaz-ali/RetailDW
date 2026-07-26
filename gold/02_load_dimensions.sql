@@ -45,19 +45,19 @@ BEGIN
         PRINT '============================================================';
 
         -----------------------------------------------------------------------
-        -- Load Customer Dimension
+        -- Customer Dimension
         -----------------------------------------------------------------------
 
         EXEC gold.load_dim_customers @BatchId;
 
         -----------------------------------------------------------------------
-        -- Load Product Dimension
+        -- Product Dimension
         -----------------------------------------------------------------------
 
         EXEC gold.load_dim_products @BatchId;
 
         -----------------------------------------------------------------------
-        -- Load Store Dimension
+        -- Store Dimension
         -----------------------------------------------------------------------
 
         EXEC gold.load_dim_stores @BatchId;
@@ -73,14 +73,16 @@ BEGIN
         PRINT 'Batch ID       : ' + CAST(@BatchId AS NVARCHAR(36));
         PRINT 'End Time       : ' + CONVERT(VARCHAR(23), @EndTime, 121);
         PRINT 'Total Duration : '
-              + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS NVARCHAR(20))
-              + ' ms';
+            + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(20))
+            + ' ms';
         PRINT 'Status         : SUCCESS';
         PRINT '============================================================';
 
     END TRY
 
     BEGIN CATCH
+
+        SET @EndTime = SYSDATETIME();
 
         INSERT INTO etl.error_log
         (
@@ -108,6 +110,7 @@ BEGIN
         PRINT '============================================================';
         PRINT 'GOLD DIMENSION LOAD FAILED';
         PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT 'End Time      : ' + CONVERT(VARCHAR(23), @EndTime, 121);
         PRINT 'Error Number  : ' + CAST(ERROR_NUMBER() AS NVARCHAR(20));
         PRINT 'Error Message : ' + ERROR_MESSAGE();
         PRINT '============================================================';
