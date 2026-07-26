@@ -1,1 +1,138 @@
+/*
+===============================================================================
+Stored Procedure: Load Gold Customer Dimension
+===============================================================================
 
+Description:
+    Loads customer dimension from silver.customers into gold.dim_customers.
+
+Usage:
+    EXEC gold.load_dim_customers @BatchId;
+
+===============================================================================
+*/
+
+USE DWH;
+GO
+
+CREATE OR ALTER PROCEDURE gold.load_dim_customers
+(
+    @BatchId UNIQUEIDENTIFIER
+)
+AS
+BEGIN
+
+    SET NOCOUNT ON;
+
+    DECLARE
+        @StartTime DATETIME2(7),
+        @EndTime DATETIME2(7),
+        @DurationMs INT,
+        @RowsLoaded INT;
+
+    BEGIN TRY
+
+        SET @StartTime = SYSDATETIME();
+
+        PRINT '------------------------------------------------------------';
+        PRINT 'Loading Table : gold.dim_customers';
+        PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
+        PRINT '------------------------------------------------------------';
+
+        TRUNCATE TABLE gold.dim_customers;
+
+        INSERT INTO gold.dim_customers
+        (
+            customer_id,
+            first_name,
+            last_name,
+            full_name,
+            email,
+            phone,
+            signup_date,
+            city,
+            state,
+            country,
+            customer_segment
+        )
+        SELECT
+            customer_id,
+            first_name,
+            last_name,
+            CONCAT(first_name,' ',last_name),
+            email,
+            phone,
+            signup_date,
+            city,
+            state,
+            country,
+            customer_segment
+        FROM silver.customers;
+
+        SELECT @RowsLoaded = COUNT(*)
+        FROM gold.dim_customers;
+
+        SET @EndTime = SYSDATETIME();
+
+        SET @DurationMs =
+            DATEDIFF(MILLISECOND,@StartTime,@EndTime);
+
+        INSERT INTO etl.etl_log
+        (
+            batch_id,
+            process_name,
+            table_name,
+            rows_loaded,
+            start_time,
+            end_time,
+            duration_ms,
+            status
+        )
+        VALUES
+        (
+            @BatchId,
+            'Gold Load',
+            'Dim Customers',
+            @RowsLoaded,
+            @StartTime,
+            @EndTime,
+            @DurationMs,
+            'SUCCESS'
+        );
+
+        PRINT 'Rows Loaded : ' + CAST(@RowsLoaded AS NVARCHAR(20));
+        PRINT 'Status      : SUCCESS';
+
+    END TRY
+
+    BEGIN CATCH
+
+        INSERT INTO etl.error_log
+        (
+            batch_id,
+            process_name,
+            procedure_name,
+            table_name,
+            error_number,
+            error_message,
+            error_line,
+            error_state
+        )
+        VALUES
+        (
+            @BatchId,
+            'Gold Load',
+            OBJECT_SCHEMA_NAME(@@PROCID)+'.'+OBJECT_NAME(@@PROCID),
+            'Dim Customers',
+            ERROR_NUMBER(),
+            ERROR_MESSAGE(),
+            ERROR_LINE(),
+            ERROR_STATE()
+        );
+
+        THROW;
+
+    END CATCH
+
+END;
+GO
