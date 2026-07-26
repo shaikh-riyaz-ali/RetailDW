@@ -1,3 +1,16 @@
+/*
+===============================================================================
+Stored Procedure : Validate Silver Layer
+===============================================================================
+
+Description:
+    Validates data loaded into the Silver layer.
+
+Usage:
+    EXEC silver.validate_silver @BatchId;
+===============================================================================
+*/
+
 USE DWH;
 GO
 
@@ -15,44 +28,52 @@ BEGIN
     PRINT 'Batch ID : ' + CAST(@BatchId AS NVARCHAR(36));
     PRINT '============================================================';
 
-    ------------------------------------------------------------
-    -- Customers
-    ------------------------------------------------------------
-    PRINT '';
-    PRINT 'Customers';
+    SELECT
+        'Customers' AS TableName,
+        COUNT(*) AS TotalRows,
+        CASE
+            WHEN COUNT(*) > 0 THEN 'PASS'
+            ELSE 'FAIL'
+        END AS ValidationStatus
+    FROM silver.customers
 
-    SELECT COUNT(*) AS TotalRows
-    FROM silver.customers;
+    UNION ALL
 
-    ------------------------------------------------------------
-    -- Products
-    ------------------------------------------------------------
-    PRINT '';
-    PRINT 'Products';
+    SELECT
+        'Products',
+        COUNT(*),
+        CASE
+            WHEN COUNT(*) > 0 THEN 'PASS'
+            ELSE 'FAIL'
+        END
+    FROM silver.products
 
-    SELECT COUNT(*) AS TotalRows
-    FROM silver.products;
+    UNION ALL
 
-    ------------------------------------------------------------
-    -- Stores
-    ------------------------------------------------------------
-    PRINT '';
-    PRINT 'Stores';
+    SELECT
+        'Stores',
+        COUNT(*),
+        CASE
+            WHEN COUNT(*) > 0 THEN 'PASS'
+            ELSE 'FAIL'
+        END
+    FROM silver.stores
 
-    SELECT COUNT(*) AS TotalRows
-    FROM silver.stores;
+    UNION ALL
 
-    ------------------------------------------------------------
-    -- Sales
-    ------------------------------------------------------------
-    PRINT '';
-    PRINT 'Sales';
-
-    SELECT COUNT(*) AS TotalRows
+    SELECT
+        'Sales',
+        COUNT(*),
+        CASE
+            WHEN COUNT(*) > 0 THEN 'PASS'
+            ELSE 'FAIL'
+        END
     FROM silver.sales;
 
     PRINT '';
-    PRINT 'Silver Validation Completed Successfully';
+    PRINT '============================================================';
+    PRINT 'SILVER VALIDATION COMPLETED';
+    PRINT '============================================================';
 
 END;
 GO
