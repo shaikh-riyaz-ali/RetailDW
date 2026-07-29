@@ -116,19 +116,19 @@ BEGIN
 
             s.order_status
 
-        FROM silver.sales s
-
-        INNER JOIN gold.dim_customer c
-            ON s.customer_id = c.customer_id
-
-        INNER JOIN gold.dim_product p
-            ON s.product_id = p.product_id
-
-        INNER JOIN gold.dim_store st
-            ON s.store_id = st.store_id
-
-        INNER JOIN gold.dim_date d
-            ON s.order_date = d.full_date;
+            FROM silver.sales s
+            
+            INNER JOIN gold.dim_customer c
+                ON s.customer_id = c.customer_id
+            
+            INNER JOIN gold.dim_product p
+                ON s.product_id = p.product_id
+            
+            INNER JOIN gold.dim_store st
+                ON s.store_id = st.store_id
+            
+            INNER JOIN gold.dim_date d
+                ON s.order_date = d.calendar_date;
 
         -----------------------------------------------------------------------
         -- Statistics
