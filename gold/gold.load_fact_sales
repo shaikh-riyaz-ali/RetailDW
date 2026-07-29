@@ -6,6 +6,17 @@ Stored Procedure: Load Gold Fact Sales
 Description:
     Loads sales transactions from silver.sales into gold.fact_sales.
 
+Actions:
+    1. Truncates the fact table.
+    2. Looks up surrogate keys from dimensions.
+    3. Calculates Gross Sales, Discount Amount and Net Sales.
+    4. Loads the fact table.
+    5. Writes ETL log.
+    6. Logs errors.
+
+Usage:
+    EXEC gold.load_fact_sales @BatchId;
+
 ===============================================================================
 */
 
@@ -67,13 +78,13 @@ BEGIN
 
             s.transaction_id,
 
-            dd.date_key,
+            d.date_key,
 
-            dc.customer_key,
+            c.customer_key,
 
-            dp.product_key,
+            p.product_key,
 
-            ds.store_key,
+            st.store_key,
 
             s.quantity,
 
@@ -81,30 +92,43 @@ BEGIN
 
             s.discount_pct,
 
-            (s.quantity * s.unit_price) AS gross_sales,
+            -------------------------------------------------------------------
+            -- Gross Sales
+            -------------------------------------------------------------------
 
-            (s.quantity * s.unit_price * s.discount_pct) AS discount_amount,
+            s.quantity * s.unit_price,
+
+            -------------------------------------------------------------------
+            -- Discount Amount
+            -------------------------------------------------------------------
+
+            (s.quantity * s.unit_price) * s.discount_pct,
+
+            -------------------------------------------------------------------
+            -- Net Sales
+            -------------------------------------------------------------------
 
             (s.quantity * s.unit_price)
-              - (s.quantity * s.unit_price * s.discount_pct) AS net_sales,
+                -
+            ((s.quantity * s.unit_price) * s.discount_pct),
 
             s.payment_method,
 
             s.order_status
 
-        FROM silver.sales AS s
-
-        INNER JOIN gold.dim_customer AS dc
-            ON s.customer_id = dc.customer_id
-
-        INNER JOIN gold.dim_product AS dp
-            ON s.product_id = dp.product_id
-
-        INNER JOIN gold.dim_store AS ds
-            ON s.store_id = ds.store_id
-
-        INNER JOIN gold.dim_date AS dd
-            ON s.order_date = dd.full_date;
+            FROM silver.sales s
+            
+            INNER JOIN gold.dim_customer c
+                ON s.customer_id = c.customer_id
+            
+            INNER JOIN gold.dim_product p
+                ON s.product_id = p.product_id
+            
+            INNER JOIN gold.dim_store st
+                ON s.store_id = st.store_id
+            
+            INNER JOIN gold.dim_date d
+                ON s.order_date = d.calendar_date;
 
         -----------------------------------------------------------------------
         -- Statistics
