@@ -54,19 +54,19 @@ BEGIN
         -- Load Customer Dimension
         -----------------------------------------------------------------------
 
-        EXEC gold.load_dim_customer @BatchId;
+        EXEC gold.load_dim_customers @BatchId;
 
         -----------------------------------------------------------------------
         -- Load Product Dimension
         -----------------------------------------------------------------------
 
-        EXEC gold.load_dim_product @BatchId;
+        EXEC gold.load_dim_products @BatchId;
 
         -----------------------------------------------------------------------
         -- Load Store Dimension
         -----------------------------------------------------------------------
 
-        EXEC gold.load_dim_store @BatchId;
+        EXEC gold.load_dim_stores @BatchId;
 
 
         SET @EndTime = SYSDATETIME();
