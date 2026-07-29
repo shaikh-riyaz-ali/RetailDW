@@ -43,7 +43,7 @@ BEGIN
         -- Remove Existing Data
         -----------------------------------------------------------------------
 
-        TRUNCATE TABLE gold.dim_customer;
+        DELETE FROM gold.dim_customer;
 
         -----------------------------------------------------------------------
         -- Load Customer Dimension
