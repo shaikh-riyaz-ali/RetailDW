@@ -10,7 +10,7 @@ Actions:
     1. Truncates the fact table.
     2. Looks up surrogate keys from dimensions.
     3. Calculates Gross Sales, Discount Amount and Net Sales.
-    4. Loads the fact table.
+    4. Loads fact_sales.
     5. Writes ETL log.
     6. Logs errors.
 
@@ -73,7 +73,6 @@ BEGIN
             payment_method,
             order_status
         )
-
         SELECT
 
             s.transaction_id,
@@ -92,43 +91,43 @@ BEGIN
 
             s.discount_pct,
 
-            -------------------------------------------------------------------
+            --------------------------------------------------------
             -- Gross Sales
-            -------------------------------------------------------------------
+            --------------------------------------------------------
+            CAST(s.quantity * s.unit_price AS DECIMAL(18,2)),
 
-            s.quantity * s.unit_price,
-
-            -------------------------------------------------------------------
+            --------------------------------------------------------
             -- Discount Amount
-            -------------------------------------------------------------------
+            --------------------------------------------------------
+            CAST((s.quantity * s.unit_price) * s.discount_pct AS DECIMAL(18,2)),
 
-            (s.quantity * s.unit_price) * s.discount_pct,
-
-            -------------------------------------------------------------------
+            --------------------------------------------------------
             -- Net Sales
-            -------------------------------------------------------------------
-
-            (s.quantity * s.unit_price)
+            --------------------------------------------------------
+            CAST(
+                (s.quantity * s.unit_price)
                 -
-            ((s.quantity * s.unit_price) * s.discount_pct),
+                ((s.quantity * s.unit_price) * s.discount_pct)
+                AS DECIMAL(18,2)
+            ),
 
             s.payment_method,
 
             s.order_status
 
-            FROM silver.sales s
-            
-            INNER JOIN gold.dim_customer c
-                ON s.customer_id = c.customer_id
-            
-            INNER JOIN gold.dim_product p
-                ON s.product_id = p.product_id
-            
-            INNER JOIN gold.dim_store st
-                ON s.store_id = st.store_id
-            
-            INNER JOIN gold.dim_date d
-                ON s.order_date = d.calendar_date;
+        FROM silver.sales s
+
+        INNER JOIN gold.dim_customer c
+            ON s.customer_id = c.customer_id
+
+        INNER JOIN gold.dim_product p
+            ON s.product_id = p.product_id
+
+        INNER JOIN gold.dim_store st
+            ON s.store_id = st.store_id
+
+        INNER JOIN gold.dim_date d
+            ON s.order_date = d.calendar_date;
 
         -----------------------------------------------------------------------
         -- Statistics
@@ -141,7 +140,7 @@ BEGIN
         SET @EndTime = SYSDATETIME();
 
         SET @DurationMs =
-            DATEDIFF(MILLISECOND, @StartTime, @EndTime);
+            DATEDIFF(MILLISECOND,@StartTime,@EndTime);
 
         -----------------------------------------------------------------------
         -- ETL Log
@@ -194,7 +193,7 @@ BEGIN
         (
             @BatchId,
             'Gold Load',
-            OBJECT_SCHEMA_NAME(@@PROCID) + '.' + OBJECT_NAME(@@PROCID),
+            OBJECT_SCHEMA_NAME(@@PROCID)+'.'+OBJECT_NAME(@@PROCID),
             'Fact Sales',
             ERROR_NUMBER(),
             ERROR_MESSAGE(),
