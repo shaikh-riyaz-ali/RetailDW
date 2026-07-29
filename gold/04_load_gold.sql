@@ -8,11 +8,10 @@ Description:
 
 Actions:
     1. Generates a Batch ID.
-    2. Loads Gold Dimension tables.
-    3. Loads Gold Fact table.
-    4. Measures execution time.
-    5. Displays execution summary.
-    6. Logs errors.
+    2. Loads Gold Dimensions.
+    3. Loads Gold Fact Table.
+    4. Displays execution summary.
+    5. Logs errors.
 
 Usage:
     EXEC gold.load_gold;
@@ -69,8 +68,8 @@ BEGIN
         PRINT 'Batch ID      : ' + CAST(@BatchId AS NVARCHAR(36));
         PRINT 'End Time      : ' + CONVERT(VARCHAR(23), @BatchEnd, 121);
         PRINT 'Total Duration: '
-              + CAST(DATEDIFF(MILLISECOND, @BatchStart, @BatchEnd) AS NVARCHAR(20))
-              + ' ms';
+            + CAST(DATEDIFF(MILLISECOND, @BatchStart, @BatchEnd) AS NVARCHAR(20))
+            + ' ms';
         PRINT 'Status        : SUCCESS';
         PRINT '============================================================';
 
