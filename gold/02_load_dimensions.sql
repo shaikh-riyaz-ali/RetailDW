@@ -45,26 +45,29 @@ BEGIN
         PRINT '============================================================';
 
         -----------------------------------------------------------------------
-        -- Customer Dimension
+        -- Load Date Dimension
         -----------------------------------------------------------------------
 
-        EXEC gold.load_dim_customers @BatchId;
+        EXEC gold.load_dim_date @BatchId;
 
         -----------------------------------------------------------------------
-        -- Product Dimension
+        -- Load Customer Dimension
         -----------------------------------------------------------------------
 
-        EXEC gold.load_dim_products @BatchId;
+        EXEC gold.load_dim_customer @BatchId;
 
         -----------------------------------------------------------------------
-        -- Store Dimension
+        -- Load Product Dimension
         -----------------------------------------------------------------------
 
-        EXEC gold.load_dim_stores @BatchId;
+        EXEC gold.load_dim_product @BatchId;
 
         -----------------------------------------------------------------------
-        -- Summary
+        -- Load Store Dimension
         -----------------------------------------------------------------------
+
+        EXEC gold.load_dim_store @BatchId;
+
 
         SET @EndTime = SYSDATETIME();
 
