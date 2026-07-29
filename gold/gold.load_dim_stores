@@ -43,7 +43,7 @@ BEGIN
         -- Remove Existing Data
         -----------------------------------------------------------------------
 
-        TRUNCATE TABLE gold.dim_store;
+        DELETE FROM gold.dim_store;
 
         -----------------------------------------------------------------------
         -- Load Store Dimension
