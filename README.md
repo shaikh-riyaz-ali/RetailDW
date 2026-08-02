@@ -351,7 +351,4 @@ Developed an interactive four-page Power BI dashboard for executive reporting.
 Delivered insights into sales, customers, products, and store performance to support data-driven decision-making.
 👨‍💻 Author
 
-Your Name
-
-LinkedIn: Your LinkedIn URL
-GitHub: Your GitHub URL
+Shaikh Riyaz Ali
